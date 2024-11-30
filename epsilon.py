@@ -3,7 +3,7 @@ import numpy as np
 from bayes import load_raw_data, training, predict
 
 
-epsilons = [1e-7, 1e-6, 1e-5, 1e-4, 1e-3]  
+epsilons = [1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1, 10, 100]  
 metrics = {"accuracy": [], "precision": [], "recall": []}
 
 # Load training and testing data
@@ -34,6 +34,12 @@ for epsilon in epsilons:
     metrics["precision"].append(precision)
     metrics["recall"].append(recall)
 
+    print(f"Epsilon: {epsilon:.0e}")
+    print(f"  Accuracy: {accuracy:.9f}%")
+    print(f"  Precision: {precision:.9f}%")
+    print(f"  Recall: {recall:.9f}%")
+
+
 # Plot results
 
 plt.figure()
@@ -42,9 +48,7 @@ plt.xscale("log")
 plt.title("Accuracy vs Smoothing Factor (epsilon)")
 plt.xlabel("Smoothing Factor (epsilon)")
 plt.ylabel("Accuracy")
-plt.ylim(92, 94)  
-plt.yticks(np.arange(92, 94, 0.2))  
-plt.grid(axis='y', linestyle='--', alpha=0.7) 
+plt.grid(True)
 plt.show()
 
 plt.figure()
@@ -53,9 +57,7 @@ plt.xscale("log")
 plt.title("Precision vs Smoothing Factor (epsilon)")
 plt.xlabel("Smoothing Factor (epsilon)")
 plt.ylabel("Precision")
-plt.ylim(67, 68)  
-plt.yticks(np.arange(67, 68, 0.1))  
-plt.grid(axis='y', linestyle='--', alpha=0.7) 
+plt.grid(True)
 plt.show()
 
 plt.figure()
@@ -64,7 +66,5 @@ plt.xscale("log")
 plt.title("Recall vs Smoothing Factor (epsilon)")
 plt.xlabel("Smoothing Factor (epsilon)")
 plt.ylabel("Recall")
-plt.ylim(88, 90)  
-plt.yticks(np.arange(88, 90, 0.2))  
-plt.grid(axis='y', linestyle='--', alpha=0.7) 
+plt.grid(True)
 plt.show()
