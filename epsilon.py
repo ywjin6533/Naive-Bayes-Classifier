@@ -13,18 +13,12 @@ train_instances, train_labels = load_raw_data(train_file)
 test_instances, test_labels = load_raw_data(test_file)
 
 for epsilon in epsilons:
-    # Modify the Gaussian probability function dynamically
-    def gaussian_probability(x, mean, std):
-        if std == 0:
-            return 1.0 if x == mean else 0.0
-        exponent = np.exp(-((x - mean) ** 2) / (2 * (std ** 2 + epsilon)))
-        return (1 / (np.sqrt(2 * np.pi) * (std + epsilon))) * exponent
-
     # Train the model
     parameters = training(train_instances, train_labels)
+    hyperparameter = {'epsileon': epsilon}
 
     # Predict using test data
-    predictions = [predict(instance, parameters) for instance in test_instances]
+    predictions = [predict(instance, parameters, hyperparameter) for instance in test_instances]
 
     # Evaluate performance
     correct = sum([pred == true for pred, true in zip(predictions, test_labels)])
