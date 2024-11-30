@@ -11,11 +11,11 @@ def calculate_std(numbers, mean):
     squared_diff_sum = sum((x - mean) ** 2 for x in numbers)
     return math.sqrt(squared_diff_sum / (len(numbers) - 1)) if len(numbers) > 1 else 0
 
-def gaussian_probability(x, mean, std):
+def gaussian_probability(x, mean, std, epsileon=1e-6):
     if std == 0:
         return 1.0 if x == mean else 0.0
-    exponent = math.exp(-((x - mean) ** 2) / (2 * (std ** 2 + 1e-6)))
-    return (1 / (math.sqrt(2 * math.pi) * (std + 1e-6))) * exponent
+    exponent = math.exp(-((x - mean) ** 2) / (2 * (std ** 2 + epsileon)))
+    return (1 / (math.sqrt(2 * math.pi) * (std + epsileon))) * exponent
 
 def training(instances, labels):
     """
@@ -59,7 +59,7 @@ def training(instances, labels):
         'std_1': std_1
     }
 
-def predict(instance, parameters):
+def predict(instance, parameters, hyperparameter):
     """
     학습된 Naive Bayes Classifier로 예측하는 함수
     """
@@ -69,18 +69,23 @@ def predict(instance, parameters):
     log_prob_0 = math.log(parameters['prior_0'])
     log_prob_1 = math.log(parameters['prior_1'])
     
+    if hyperparameter['epsileon'] is not None:
+        epsileon = hyperparameter['epsileon']
+    
     # 각 특성에 대한 확률 계산
     for i, feature in enumerate(features):
         # 클래스 0에 대한 확률
         prob_0 = gaussian_probability(feature, 
                                     parameters['mean_0'][i], 
-                                    parameters['std_0'][i])
+                                    parameters['std_0'][i],
+                                    epsileon)
         log_prob_0 += math.log(prob_0 + 1e-10)  # log(0) 방지
         
         # 클래스 1에 대한 확률
         prob_1 = gaussian_probability(feature, 
                                     parameters['mean_1'][i], 
-                                    parameters['std_1'][i])
+                                    parameters['std_1'][i],
+                                    epsileon)
         log_prob_1 += math.log(prob_1 + 1e-10)
     
     return 1 if log_prob_1 > log_prob_0 else 0
