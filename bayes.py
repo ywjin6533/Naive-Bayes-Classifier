@@ -3,6 +3,7 @@ import sys
 import argparse
 import logging
 import math
+from sklearn.metrics import precision_recall_fscore_support
 
 def calculate_mean(numbers):
     return sum(numbers) / len(numbers)
@@ -102,71 +103,86 @@ def report(predictions, answers):
             correct += 1
     accuracy = round(correct / len(answers), 2) * 100
 
-    # precision
+    # precision & recall calculation (raw values)
     tp = 0
     fp = 0
+    fn = 0
     for idx in range(len(predictions)):
         if predictions[idx] == 1:
             if answers[idx] == 1:
                 tp += 1
             else:
                 fp += 1
-    precision = round(tp / (tp + fp), 2) * 100
-
-    # recall
-    tp = 0
-    fn = 0
-    for idx in range(len(answers)):
-        if answers[idx] == 1:
-            if predictions[idx] == 1:
-                tp += 1
-            else:
-                fn += 1
-    recall = round(tp / (tp + fn), 2) * 100
+        elif answers[idx] == 1:  # predictions[idx] == 0 and answers[idx] == 1
+            fn += 1
+    
+    # Calculate raw metrics
+    raw_precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    raw_recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    
+    # Calculate F1 from raw values
+    f1 = 2 * (raw_precision * raw_recall) / (raw_precision + raw_recall) if (raw_precision + raw_recall) > 0 else 0
+    
+    # Convert to percentages for display
+    precision = round(raw_precision * 100, 2)
+    recall = round(raw_recall * 100, 2)
+    f1 = round(f1 * 100, 2)
 
     logging.info("accuracy: {}%".format(accuracy))
     logging.info("precision: {}%".format(precision))
     logging.info("recall: {}%".format(recall))
+    logging.info("F1-score: {}%".format(f1))
 
-def load_raw_data(fname):
+def calculate_discomfort_index(temperature, humidity):
+    """불쾌지수 계산 함수"""
+    return 0.81 * temperature + 0.01 * humidity * (0.99 * temperature - 14.3) + 46.3
+
+def load_raw_data(fname, selected_features=None):
     instances = []
     labels = []
     with open(fname, "r") as f:
-        f.readline()
+        headers = f.readline().strip().split(", ")
         for line in f:
             tmp = line.strip().split(", ")
-            tmp[1] = float(tmp[1])
-            tmp[2] = float(tmp[2])
-            tmp[3] = float(tmp[3])
-            tmp[4] = float(tmp[4])
-            tmp[5] = int(tmp[5])
-            tmp[6] = int(tmp[6])
-            tmp[7] = float(tmp[7])
-            tmp[8] = int(tmp[8])
-            instances.append(tmp[:-1])
-            labels.append(tmp[-1])
+            if selected_features:
+                features = []
+                for idx in selected_features.keys():
+                    if idx == 8:  # 불쾌지수를 위한 새로운 인덱스
+                        temp = float(tmp[1])  # avg temperature
+                        humidity = float(tmp[4])  # avg humidity
+                        di = calculate_discomfort_index(temp, humidity)
+                        features.append(di)
+                    elif idx in [5,6]:  # humidity max, min은 정수형
+                        features.append(int(tmp[idx]))
+                    else:
+                        features.append(float(tmp[idx]))
+                instances.append(features)
+            else:  # 모든 feature 사용 (기존 방식)
+                features = [float(tmp[1]), float(tmp[2]), float(tmp[3]), 
+                          float(tmp[4]), int(tmp[5]), int(tmp[6]), float(tmp[7])]
+                instances.append(features)
+            labels.append(int(tmp[-1]))
     return instances, labels
 
-def run(train_file, test_file):
+def run_experiment(train_file, test_file, feature_set, feature_names):
+    """
+    특정 feature set으로 실험을 수행하는 함수
+    """
     # training phase
-    instances, labels = load_raw_data(train_file)
-    logging.debug("instances: {}".format(instances))
-    logging.debug("labels: {}".format(labels))
+    instances, labels = load_raw_data(train_file, feature_set)
     parameters = training(instances, labels)
 
     # testing phase
-    instances, labels = load_raw_data(test_file)
+    instances, labels = load_raw_data(test_file, feature_set)
     predictions = []
+    hyperparameter = {'epsileon': 1e-6}
+    
     for instance in instances:
-        result = predict(instance, parameters)
-
-        if result not in [0, 1]:
-            logging.error("The result must be either 0 or 1")
-            sys.exit(1)
-
+        result = predict(instance, parameters, hyperparameter)
         predictions.append(result)
     
     # report
+    logging.info(f"\nExperiment with features: {list(feature_names.values())}")
     report(predictions, labels)
 
 def command_line_args():
@@ -174,7 +190,8 @@ def command_line_args():
     parser.add_argument("-t", "--training", required=True, metavar="<file path to the training dataset>", help="File path of the training dataset", default="training.csv")
     parser.add_argument("-u", "--testing", required=True, metavar="<file path to the testing dataset>", help="File path of the testing dataset", default="testing.csv")
     parser.add_argument("-l", "--log", help="Log level (DEBUG/INFO/WARNING/ERROR/CRITICAL)", type=str, default="INFO")
-
+    parser.add_argument("-f", "--features", help="Feature indices to use (comma-separated). Available features: 1:avg_temp, 2:max_temp, 3:min_temp, 4:avg_humid, 5:max_humid, 6:min_humid, 7:power, 8:discomfort_index", type=str, required=True)
+    
     args = parser.parse_args()
     return args
 
@@ -182,15 +199,27 @@ def main():
     args = command_line_args()
     logging.basicConfig(level=args.log)
 
-    if not os.path.exists(args.training):
-        logging.error("The training dataset does not exist: {}".format(args.training))
+    if not os.path.exists(args.training) or not os.path.exists(args.testing):
+        logging.error("Dataset files do not exist")
         sys.exit(1)
 
-    if not os.path.exists(args.testing):
-        logging.error("The testing dataset does not exist: {}".format(args.testing))
-        sys.exit(1)
-
-    run(args.training, args.testing)
+    # Parse feature indices
+    feature_indices = [int(x.strip()) for x in args.features.split(',')]
+    feature_names = {
+        1: 'avg_temperature',
+        2: 'max_temperature',
+        3: 'min_temperature',
+        4: 'avg_humidity',
+        5: 'max_humidity',
+        6: 'min_humidity',
+        7: 'power',
+        8: 'discomfort_index'
+    }
+    
+    selected_features = {idx: feature_names[idx] for idx in feature_indices}
+    
+    # 선택된 feature set으로 실험 수행
+    run_experiment(args.training, args.testing, selected_features, selected_features)
 
 if __name__ == "__main__":
     main()
