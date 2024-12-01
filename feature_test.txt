@@ -1,0 +1,48 @@
+python bayes.py -t training.csv -u testing.csv -f 1,2,7
+INFO:root:
+Experiment with features: ['avg_temperature', 'max_temperature', 'power']
+INFO:root:accuracy: 94.0%
+INFO:root:precision: 88.24%
+INFO:root:recall: 63.83%
+INFO:root:F1-score: 74.07%
+흔히 여름철에는 냉방 수요가 높아져 전력 사용량이 급증합니다. 그러므로 평균 기온과 최고 기온이 높은 날에는 냉방 가동이 증가해 전력 사용량이 급증할 수 있을 것이라고 생각하였습니다. 때문에 우선 평균 기온, 최고 기온, 전력 사용량을 이용해 실험하였습니다.
+그 결과 전체적인 예측에서 좋은 성능을 보여주었으며, 이상치 역시 88.24%로 높은 정확도로 예측할 수 있었습니다 실제 이상치에 대해서는 약 63.83%로 절반 이상의 이상치를 성공적으로 탐지할 수 있었습니다. F1-score가 74.07%임을 고려하면, 기온 정보는 이상치 탐지에 매우 효과적임을 알 수 있습니다.
+
+python bayes.py -t training.csv -u testing.csv -f 4,5,7
+INFO:root:
+Experiment with features: ['avg_humidity', 'max_humidity', 'power']
+INFO:root:accuracy: 87.0%
+INFO:root:precision: 46.15%
+INFO:root:recall: 12.77%
+INFO:root:F1-score: 20.0%
+여름철에는 기온뿐만 아니라 습도 역시 냉방 수요에 큰 영향을 미칠 것입니다. 습도가 높아지면 날씨가 후덥지근해지고, 체감 온도가 오르게 됩니다. 때문에 평균 습도, 최고 습도, 전력량을 이용하여 실험하였습니다.
+하지만 2가지 습도 feature를 이용하였을 때는 기온 feature를 사용했을 때에 비해 전체적으로 수치가 크게 감소하였습니다. 이는 습도가 전력사용량에 대해 기온만큼 직접적인 영향을 미치지 않는다는 것을 의미합니다.
+
+python bayes.py -t training.csv -u testing.csv -f 1,2,4,5,7
+INFO:root:
+Experiment with features: ['avg_temperature', 'max_temperature', 'avg_humidity', 'max_humidity', 'power']
+INFO:root:accuracy: 96.0%
+INFO:root:precision: 90.24%
+INFO:root:recall: 78.72%
+INFO:root:F1-score: 84.09%
+기온과 습도의 조합이 체감온도와 불쾌지수에 영향을 미치고, 이는 냉방 수요 증가로 이어질 수 있습니다. 특히 평균 기온이 높으면서 동시에 습도도 높은 날에는 냉방 효율이 떨어지면서 전력 소비가 더욱 증가할 수 있습니다. 이에 2가지 기온 feature와 2가지 습도 feature를 모두 실험에 사용하였습니다.
+그 결과 2가지 기온 feature만 사용했을 때보다 accuracy, precision은 약 2%, recall은 약 15%, f1-score는 약 10% 증가하였습니다. 여름철의 전력 사용량은 계절 특성상 기온과 습도를 모두 고려하였을 때 이상치를 정확히 탐지할 수 있음을 알 수 있습니다.
+
+python bayes.py -t training.csv -u testing.csv -f 2,3,5,6,7
+Experiment with features: ['max_temperature', 'min_temperature', 'max_humidity', 'min_humidity', 'power']
+INFO:root:accuracy: 94.0%
+INFO:root:precision: 80.0%
+INFO:root:recall: 68.09%
+INFO:root:F1-score: 73.56%
+하루 동안의 온도와 습도 변화가 큰 날에는 냉난방 시스템이 안정적으로 작동하기 어려울 수 있습니다. 특히 최고 기온과 최저 기온의 차이가 크고, 습도 변화도 큰 날에는 냉난방 시스템이 더 많은 부하를 받아 전력 사용량이 증가할 수 있습니다. 이러한 가능성이 실제로 전력 사용량 이상치 발생에 영향을 미치는지 확인하고자 하였습니다.
+그 결과 바로 이전의 실험보다는 전체적으로 약간 낮은 수치를 보여주었습니다. 이전 실험에서는 최저 기온, 습도에 대한 feature가 들어가있지 않지만, 이번엔 포함시켰습니다. 또한 평균 기온, 습도에 대한 feature가 제외되어 있습니다. 최저 기온, 습도보다는 평균 기온, 습도가 이상치 탐지에 더 중요한 영향을 미침을 확인할 수 있었습니다.
+
+python bayes.py -t training.csv -u testing.csv -f 7,8
+Experiment with features: ['discomfort_index', 'power']
+INFO:root:accuracy: 87.0%
+INFO:root:precision: 44.44%
+INFO:root:recall: 8.51%
+INFO:root:F1-score: 14.29%
+불쾌지수는 온도, 습도 등의 조건에서 인간이 느끼는 불쾌한 정도를 수치로서 나타낸 것입니다. 이를 전력 사용량과 연관지어 실험을 진행하였습니다
+예측의 정확도는 높았으나. precision, recall수치가 상당히 낮아 이상치를 적절하게 찾아내지 못함을 알 수 있습니다. 결정적으로 f1-score가 14.29%라는 매우 낮은 수치를 보여주어, 단독으로는 전력 사용량 이상치를 효과적으로 탐지하기 어렵다는 것을 알 수 있었습니다. 
+결론적으로 평균 기온, 습도, 최대 기온, 습도, 전력량을 고려했을 때 이상치를 가장 잘 탐지함을 알 수 있습니다. 그 중에서도 2가지 습도 feature가 이상치에 미치는 영향보다는, 2가지 온도 feature가 이상치에 훨씬 큰 영향을 끼친다는 점을 알 수 있습니다.
